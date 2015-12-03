@@ -1,0 +1,10 @@
+language: go
+go:
+  - tip
+  - 1.5
+script:
+  - go test
+install:
+  - go get github.com/parnurzeal/gorequest
+  - go get github.com/pkg4go/urlx
+  - go get github.com/tj/go-debug
