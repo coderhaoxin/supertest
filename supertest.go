@@ -2,6 +2,7 @@ package supertest
 
 import "github.com/parnurzeal/gorequest"
 import "github.com/pkg4go/urlx"
+import "encoding/json"
 import "net/http"
 import "reflect"
 import "strings"
@@ -114,6 +115,7 @@ func (r *Agent) End(cbs ...func(response gorequest.Response, bodyString string, 
 		for _, assert := range r.asserts {
 			if len(assert) == 1 {
 				v := assert[0]
+
 				if getType(v) == "int" {
 					// status
 					checkStatus(v, status)
@@ -133,7 +135,6 @@ func (r *Agent) End(cbs ...func(response gorequest.Response, bodyString string, 
 				} else {
 					panic(errors.New("Unknown Expect behavior"))
 				}
-
 			} else {
 				panic(errors.New("Expect only accept one or two args"))
 			}
@@ -166,18 +167,38 @@ func checkHeader(header http.Header, key, val interface{}) {
 	}
 }
 
-func checkBody(body interface{}, actual, contentType string) {
+func checkBody(tobe interface{}, body, contentType string) {
 	// only support text, json
-
-	if strings.HasPrefix(contentType, "text/") {
-		// text
-
-		if expect := body.(string); expect != actual {
-			panic(fmt.Errorf("Expected body:\n%s\nbut got:\n%s", expect, actual))
-		}
-	}
+	var expect string
 
 	if strings.HasPrefix(contentType, "application/json") {
-		// json TODO: other content types
+		// json TODO: more content types
+		if getType(tobe) == "string" {
+			expect = tobe.(string)
+		} else {
+			buf, err := json.Marshal(tobe)
+			if err != nil {
+				panic(err)
+			}
+
+			expect = string(buf[0:len(buf)])
+		}
+
+		if trim(expect) != trim(body) {
+			panic(fmt.Errorf("Expected body:\n%s\nbut got:\n%s", trim(expect), trim(body)))
+		}
+	} else if strings.HasPrefix(contentType, "text/") {
+		// text
+		expect = tobe.(string)
+
+		if expect != body {
+			panic(fmt.Errorf("Expected body:\n%s\nbut got:\n%s", expect, body))
+		}
+	} else {
+		panic(fmt.Errorf("content-type: %s not supported", contentType))
 	}
+}
+
+func trim(str string) string {
+	return strings.Replace(strings.Replace(strings.Replace(str, "\n", "", -1), "\t", "", -1), " ", "", -1)
 }

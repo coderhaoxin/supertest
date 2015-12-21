@@ -45,7 +45,9 @@ func TestCheckHeader(t *testing.T) {
 		End()
 }
 
-const TEXT_BODY = "User-agent: *\nDisallow: /deny\n"
+const TEXT_BODY = `User-agent: *
+Disallow: /deny
+`
 
 func TestCheckBody_Text(t *testing.T) {
 	Request(HOST).
@@ -55,20 +57,20 @@ func TestCheckBody_Text(t *testing.T) {
 		End()
 }
 
-// func TestCheckBody_Text_Error(t *testing.T) {
-// 	defer checkError("Expected body:\nerror\n, but got:" + TEXT_BODY)
+func TestCheckBody_Text_Error(t *testing.T) {
+	defer checkError("Expected body:\nerror\nbut got:\n" + TEXT_BODY)
 
-// 	Request(HOST).
-// 		Get("/robots.txt").
-// 		Expect(200).
-// 		Expect("error").
-// 		End()
-// }
+	Request(HOST).
+		Get("/robots.txt").
+		Expect(200).
+		Expect("error").
+		End()
+}
 
 func TestCheckBody_Json_String(t *testing.T) {
 	body := `{
 		"Content-Length": "68",
-		"Content-Type":   "application/json"
+		"Content-Type": "application/json"
 	}`
 
 	Request(HOST).
@@ -93,8 +95,8 @@ func TestCheckBody_Json_Map(t *testing.T) {
 
 func TestCheckBody_Json_Struct(t *testing.T) {
 	type Body struct {
-		ContentLength string
-		ContentType   string
+		ContentLength string `json:"Content-Length"`
+		ContentType   string `json:"Content-Type"`
 	}
 
 	body := Body{
@@ -114,10 +116,11 @@ func checkError(suffix string) {
 
 	if err == nil {
 		panic("test failed")
+		return
 	}
 
 	str := fmt.Sprintf("%v", err)
 	if !strings.HasSuffix(str, suffix) {
-		panic(fmt.Sprintf("test failed, err is: %v, expect: %s", err, suffix))
+		panic(fmt.Sprintf("test failed - error is:\n%s\nbut expected error suffix:\n%s\n", str, suffix))
 	}
 }
