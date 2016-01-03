@@ -17,13 +17,14 @@
 ```go
 import . "github.com/haoxins/supertest"
 
-Request("http://example.com")
-  .Get("/hello")
-  .Expect(200) // status
-  .Expect("Content-Type", "application/json") // header
-  .Expect(`{"name":"hello"}`) // body
+Request("http://example.com").
+  Get("/hello").
+  Expect(200). // status
+  Expect("Content-Type", "application/json"). // header
+  Expect(`{"name":"hello"}`). // body
   // or
-  // .Expect(map[string]string{"name": "hello"})
+  // Expect(map[string]string{"name": "hello"}).
+  End()
 ```
 
 ### License
