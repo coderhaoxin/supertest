@@ -16,15 +16,27 @@
 
 ```go
 import . "github.com/haoxins/supertest"
+import "testing"
 
-Request("http://example.com").
-  Get("/hello").
-  Expect(200). // status
-  Expect("Content-Type", "application/json"). // header
-  Expect(`{"name":"hello"}`). // body
-  // or
-  // Expect(map[string]string{"name": "hello"}).
-  End()
+func TestGet1(t *testing.T) {
+  Request("http://httpbin.org", t).
+    Get("/get").
+    Query("name=test").
+    Expect(200).
+    Expect("Content-Type", "application/json").
+    End()
+}
+
+func TestGet2(t *testing.T) {
+  Request("http://example.com").
+    Get("/hello").
+    Expect(200). // status
+    Expect("Content-Type", "application/json"). // header
+    Expect(`{"name":"hello"}`). // body
+    // or
+    // Expect(map[string]string{"name": "hello"}).
+    End()
+}
 ```
 
 ### License

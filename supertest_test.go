@@ -4,7 +4,7 @@ import "testing"
 import "strings"
 import "fmt"
 
-// Basic
+// Basic - with panic
 
 const HOST = "http://httpbin.org"
 
@@ -27,7 +27,7 @@ func TestPost(t *testing.T) {
 }
 
 func TestCheckStatus(t *testing.T) {
-	defer checkError("Expected status: [204], but got: [200]")
+	defer checkPanic("Expected status: [204], but got: [200]")
 
 	Request(HOST).
 		Get("/get").
@@ -36,7 +36,7 @@ func TestCheckStatus(t *testing.T) {
 }
 
 func TestCheckHeader(t *testing.T) {
-	defer checkError("Expected header [name] to equal: [supertest], but got: [test]")
+	defer checkPanic("Expected header [name] to equal: [supertest], but got: [test]")
 
 	Request(HOST).
 		Get("/response-headers").
@@ -58,7 +58,7 @@ func TestCheckBody_Text(t *testing.T) {
 }
 
 func TestCheckBody_Text_Error(t *testing.T) {
-	defer checkError("Expected body:\nerror\nbut got:\n" + TEXT_BODY)
+	defer checkPanic("Expected body:\nerror\nbut got:\n" + TEXT_BODY)
 
 	Request(HOST).
 		Get("/robots.txt").
@@ -111,7 +111,19 @@ func TestCheckBody_Json_Struct(t *testing.T) {
 		End()
 }
 
-func checkError(suffix string) {
+// with testing.T
+
+func TestGetWithT(t *testing.T) {
+	// TODO - should check error
+	Request(HOST, t).
+		Get("/get").
+		Query("name=test").
+		Expect(200).
+		Expect("Content-Type", "application/json").
+		End()
+}
+
+func checkPanic(suffix string) {
 	err := recover()
 
 	if err == nil {

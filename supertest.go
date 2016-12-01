@@ -6,6 +6,7 @@ import "encoding/json"
 import "net/http"
 import "reflect"
 import "strings"
+import "testing"
 import "errors"
 import "fmt"
 
@@ -13,14 +14,19 @@ type Agent struct {
 	host    string
 	path    string
 	method  string
+	t       *testing.T
 	asserts [][]interface{}
 	agent   *gorequest.SuperAgent
 }
 
-func Request(host string) *Agent {
+func Request(host string, ts ...*testing.T) *Agent {
 	r := &Agent{}
 	r.host = host
 	r.agent = gorequest.New()
+
+	if len(ts) > 0 {
+		r.t = ts[0]
+	}
 	return r
 }
 
@@ -106,6 +112,14 @@ func (r *Agent) Expect(args ...interface{}) *Agent {
 	return r
 }
 
+func (r *Agent) throw(err error) {
+	if r.t != nil {
+		r.t.Error(err)
+	} else {
+		panic(err)
+	}
+}
+
 func (r *Agent) End(cbs ...func(response gorequest.Response, bodyString string, errors []error)) {
 	r.agent.End(func(res gorequest.Response, body string, errs []error) {
 
@@ -118,25 +132,25 @@ func (r *Agent) End(cbs ...func(response gorequest.Response, bodyString string, 
 
 				if getType(v) == "int" {
 					// status
-					checkStatus(v, status)
+					r.checkStatus(v, status)
 				} else {
 					// body
-					checkBody(v, body, contentType)
+					r.checkBody(v, body, contentType)
 				}
 			} else if len(assert) == 2 {
 
 				if getType(assert[0]) == "int" {
 					// Expect(200, `body`)
-					checkStatus(assert[0], status)
-					checkBody(assert[1], body, contentType)
+					r.checkStatus(assert[0], status)
+					r.checkBody(assert[1], body, contentType)
 				} else if getType(assert[0]) == "string" {
 					// Expect("Content-Type", "application/json")
-					checkHeader(res.Header, assert[0], assert[1])
+					r.checkHeader(res.Header, assert[0], assert[1])
 				} else {
-					panic(errors.New("Unknown Expect behavior"))
+					r.throw(errors.New("Unknown Expect behavior"))
 				}
 			} else {
-				panic(errors.New("Expect only accept one or two args"))
+				r.throw(errors.New("Expect only accept one or two args"))
 			}
 		}
 
@@ -147,27 +161,23 @@ func (r *Agent) End(cbs ...func(response gorequest.Response, bodyString string, 
 	})
 }
 
-func getType(v interface{}) string {
-	return reflect.ValueOf(v).Kind().String()
-}
-
-func checkStatus(status interface{}, actual int) {
+func (r *Agent) checkStatus(status interface{}, actual int) {
 	expect := status.(int)
 	if expect != actual {
-		panic(fmt.Errorf("Expected status: [%d], but got: [%d]", expect, actual))
+		r.throw(fmt.Errorf("Expected status: [%d], but got: [%d]", expect, actual))
 	}
 }
 
-func checkHeader(header http.Header, key, val interface{}) {
+func (r *Agent) checkHeader(header http.Header, key, val interface{}) {
 	k := key.(string)
 	actual := header.Get(k)
 	expect := val.(string)
 	if actual != expect {
-		panic(fmt.Errorf("Expected header [%s] to equal: [%s], but got: [%s]", k, expect, actual))
+		r.throw(fmt.Errorf("Expected header [%s] to equal: [%s], but got: [%s]", k, expect, actual))
 	}
 }
 
-func checkBody(tobe interface{}, body, contentType string) {
+func (r *Agent) checkBody(tobe interface{}, body, contentType string) {
 	// only support text, json
 	var expect string
 
@@ -178,25 +188,29 @@ func checkBody(tobe interface{}, body, contentType string) {
 		} else {
 			buf, err := json.Marshal(tobe)
 			if err != nil {
-				panic(err)
+				r.throw(err)
 			}
 
 			expect = string(buf[0:len(buf)])
 		}
 
 		if trim(expect) != trim(body) {
-			panic(fmt.Errorf("Expected body:\n%s\nbut got:\n%s", trim(expect), trim(body)))
+			r.throw(fmt.Errorf("Expected body:\n%s\nbut got:\n%s", trim(expect), trim(body)))
 		}
 	} else if strings.HasPrefix(contentType, "text/") {
 		// text
 		expect = tobe.(string)
 
 		if expect != body {
-			panic(fmt.Errorf("Expected body:\n%s\nbut got:\n%s", expect, body))
+			r.throw(fmt.Errorf("Expected body:\n%s\nbut got:\n%s", expect, body))
 		}
 	} else {
-		panic(fmt.Errorf("content-type: %s not supported", contentType))
+		r.throw(fmt.Errorf("content-type: %s not supported", contentType))
 	}
+}
+
+func getType(v interface{}) string {
+	return reflect.ValueOf(v).Kind().String()
 }
 
 func trim(str string) string {
